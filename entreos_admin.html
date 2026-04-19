@@ -451,8 +451,14 @@ if(localStorage.getItem('entreos_admin_auth')==='1'){
 function initSB(){
   const u=localStorage.getItem('supa_url')||DEFAULT_SUPA_URL;
   const k=localStorage.getItem('supa_key')||DEFAULT_SUPA_KEY;
-  if(u&&k){sb=window.supabase.createClient(u,k);toast('Supabase connected');}
-  else toast('Set credentials in Settings',true);
+  try{
+    sb=window.supabase.createClient(u,k);
+    console.log('Supabase client created for:',u);
+    toast('Supabase connected');
+  }catch(e){
+    console.error('Supabase init failed:',e);
+    toast('Supabase init failed: '+e.message,true);
+  }
 }
 
 // Nav
@@ -586,9 +592,12 @@ document.getElementById('biz-search').addEventListener('input',filterBiz);
 document.getElementById('biz-sector').addEventListener('change',filterBiz);
 document.getElementById('biz-status').addEventListener('change',filterBiz);
 async function loadBiz(){
-  if(!sb)return;
-  const{data}=await sb.from('businesses').select('*').order('created_at',{ascending:false});
-  allBiz=data||[];renderBizT(allBiz);
+  if(!sb){document.getElementById('biz-table').innerHTML='<tr class="loading-row"><td colspan="8">Not connected — go to Settings and save your Supabase credentials</td></tr>';return;}
+  try{
+    const{data,error}=await sb.from('businesses').select('*').order('created_at',{ascending:false});
+    if(error){console.error('businesses error:',error);document.getElementById('biz-table').innerHTML='<tr class="loading-row"><td colspan="8">Error: '+error.message+'</td></tr>';return;}
+    allBiz=data||[];renderBizT(allBiz);
+  }catch(e){document.getElementById('biz-table').innerHTML='<tr class="loading-row"><td colspan="8">Error: '+e.message+'</td></tr>';}
 }
 function filterBiz(){
   const q=document.getElementById('biz-search').value.toLowerCase();
@@ -648,9 +657,12 @@ document.getElementById('saveFranBtn').addEventListener('click',saveFran);
 document.getElementById('fran-search').addEventListener('input',filterFran);
 document.getElementById('fran-sector').addEventListener('change',filterFran);
 async function loadFran(){
-  if(!sb)return;
-  const{data}=await sb.from('franchises').select('*').order('created_at',{ascending:false});
-  allFran=data||[];renderFranT(allFran);
+  if(!sb){document.getElementById('fran-table').innerHTML='<tr class="loading-row"><td colspan="8">Not connected — go to Settings</td></tr>';return;}
+  try{
+    const{data,error}=await sb.from('franchises').select('*').order('created_at',{ascending:false});
+    if(error){console.error('franchises error:',error);document.getElementById('fran-table').innerHTML='<tr class="loading-row"><td colspan="8">Error: '+error.message+'</td></tr>';return;}
+    allFran=data||[];renderFranT(allFran);
+  }catch(e){document.getElementById('fran-table').innerHTML='<tr class="loading-row"><td colspan="8">Error: '+e.message+'</td></tr>';}
 }
 function filterFran(){
   const q=document.getElementById('fran-search').value.toLowerCase();
@@ -702,9 +714,12 @@ document.getElementById('scheme-search').addEventListener('input',filterSchemes)
 document.getElementById('scheme-type').addEventListener('change',filterSchemes);
 document.getElementById('scheme-level').addEventListener('change',filterSchemes);
 async function loadSchemes(){
-  if(!sb)return;
-  const{data}=await sb.from('govt_schemes').select('*').order('created_at',{ascending:false});
-  allSchemes=data||[];renderSchemesT(allSchemes);
+  if(!sb){document.getElementById('scheme-table').innerHTML='<tr class="loading-row"><td colspan="7">Not connected — go to Settings</td></tr>';return;}
+  try{
+    const{data,error}=await sb.from('govt_schemes').select('*').order('created_at',{ascending:false});
+    if(error){console.error('schemes error:',error);document.getElementById('scheme-table').innerHTML='<tr class="loading-row"><td colspan="7">Error: '+error.message+'</td></tr>';return;}
+    allSchemes=data||[];renderSchemesT(allSchemes);
+  }catch(e){document.getElementById('scheme-table').innerHTML='<tr class="loading-row"><td colspan="7">Error: '+e.message+'</td></tr>';}
 }
 function filterSchemes(){
   const q=document.getElementById('scheme-search').value.toLowerCase();
@@ -755,9 +770,12 @@ document.getElementById('saveCourseBtn').addEventListener('click',saveCourse);
 document.getElementById('course-search').addEventListener('input',filterCourses);
 document.getElementById('course-type').addEventListener('change',filterCourses);
 async function loadCourses(){
-  if(!sb)return;
-  const{data}=await sb.from('courses').select('*').order('created_at',{ascending:false});
-  allCourses=data||[];renderCoursesT(allCourses);
+  if(!sb){document.getElementById('course-table').innerHTML='<tr class="loading-row"><td colspan="8">Not connected — go to Settings</td></tr>';return;}
+  try{
+    const{data,error}=await sb.from('courses').select('*').order('created_at',{ascending:false});
+    if(error){console.error('courses error:',error);document.getElementById('course-table').innerHTML='<tr class="loading-row"><td colspan="8">Error: '+error.message+'</td></tr>';return;}
+    allCourses=data||[];renderCoursesT(allCourses);
+  }catch(e){document.getElementById('course-table').innerHTML='<tr class="loading-row"><td colspan="8">Error: '+e.message+'</td></tr>';}
 }
 function filterCourses(){
   const q=document.getElementById('course-search').value.toLowerCase();
