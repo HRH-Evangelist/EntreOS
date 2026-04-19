@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EntreOS Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0a0a0a;--paper:#f7f4ee;--haldi:#F2C94C;--haldi-dim:#D4A800;
+  --mid:#6B6560;--rule:#E0DDDA;--green:#1A6A3A;--green-bg:#EEF7F2;
+  --blue:#1A4A7A;--blue-bg:#EEF2FB;--red:#C0392B;--red-bg:#FDF0EF;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Space Mono',monospace;background:#f0ede8;color:var(--ink);font-size:13px}
+#gate{position:fixed;inset:0;background:var(--ink);display:flex;align-items:center;justify-content:center;z-index:9999;flex-direction:column;gap:20px}
+#gate h1{font-family:'Bebas Neue';font-size:48px;color:var(--haldi);letter-spacing:2px}
+#gate input{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:var(--paper);font-family:'Space Mono';font-size:14px;padding:12px 20px;width:280px;outline:none}
+#gate input:focus{border-color:var(--haldi)}
+#gate button{background:var(--haldi);color:var(--ink);border:none;font-family:'Bebas Neue';font-size:18px;letter-spacing:2px;padding:12px 40px;cursor:pointer}
+#gate .err{color:var(--red);font-size:11px;letter-spacing:1px}
+
+.layout{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+.sidebar{background:var(--ink);padding:0;position:sticky;top:0;height:100vh;overflow-y:auto}
+.sidebar-logo{padding:24px 20px;border-bottom:1px solid rgba(255,255,255,.06)}
+.sidebar-logo h1{font-family:'Bebas Neue';font-size:28px;color:var(--haldi);letter-spacing:2px}
+.sidebar-logo p{font-size:9px;color:var(--mid);letter-spacing:1px;margin-top:2px}
+.nav-section{padding:16px 0 8px}
+.nav-label{font-size:8px;letter-spacing:2px;color:var(--mid);text-transform:uppercase;padding:0 20px;margin-bottom:8px}
+.nav-item{display:block;padding:10px 20px;color:rgba(247,244,238,.5);font-size:11px;letter-spacing:1px;cursor:pointer;transition:all .15s;border-left:2px solid transparent}
+.nav-item:hover{color:var(--paper);background:rgba(255,255,255,.04)}
+.nav-item.active{color:var(--haldi);border-left-color:var(--haldi);background:rgba(242,201,76,.06)}
+
+.main{padding:32px 40px;max-width:1100px}
+.page{display:none}
+.page.active{display:block}
+.page-header{margin-bottom:28px;padding-bottom:16px;border-bottom:1px solid var(--rule)}
+.page-kicker{font-size:9px;letter-spacing:3px;color:var(--mid);text-transform:uppercase;margin-bottom:6px}
+.page-title{font-family:'Bebas Neue';font-size:36px;letter-spacing:1px;color:var(--ink)}
+.page-sub{font-size:12px;color:var(--mid);margin-top:4px;font-style:italic}
+
+/* Stats row */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:32px}
+.stat-card{background:var(--paper);border:1px solid var(--rule);padding:20px;border-top:3px solid var(--ink)}
+.stat-label{font-size:9px;letter-spacing:2px;color:var(--mid);text-transform:uppercase;margin-bottom:8px}
+.stat-val{font-family:'Bebas Neue';font-size:32px;color:var(--ink);line-height:1}
+.stat-sub{font-size:10px;color:var(--mid);margin-top:4px}
+
+/* Table */
+.table-wrap{background:var(--paper);border:1px solid var(--rule);overflow:hidden}
+.table-toolbar{padding:16px 20px;border-bottom:1px solid var(--rule);display:flex;align-items:center;justify-content:space-between;gap:12px}
+.search-input{background:transparent;border:1px solid var(--rule);color:var(--ink);font-family:'Space Mono';font-size:12px;padding:8px 12px;width:240px;outline:none}
+.search-input:focus{border-color:var(--ink)}
+.btn{background:var(--ink);color:var(--haldi);border:none;font-family:'Bebas Neue';font-size:14px;letter-spacing:1px;padding:8px 20px;cursor:pointer;transition:all .15s}
+.btn:hover{background:#1a1a1a}
+.btn-sm{font-size:12px;padding:6px 14px}
+.btn-outline{background:transparent;border:1px solid var(--rule);color:var(--mid)}
+.btn-outline:hover{border-color:var(--ink);color:var(--ink)}
+.btn-red{background:var(--red);color:#fff}
+.btn-green{background:var(--green);color:#fff}
+table{width:100%;border-collapse:collapse}
+th{background:var(--ink);color:var(--haldi);font-size:9px;letter-spacing:2px;text-transform:uppercase;padding:10px 16px;text-align:left}
+td{padding:12px 16px;border-bottom:1px solid var(--rule);font-size:12px;vertical-align:top}
+tr:hover td{background:rgba(242,201,76,.03)}
+.badge{display:inline-block;font-size:9px;letter-spacing:1px;padding:2px 8px;border-radius:0}
+.badge-green{background:var(--green-bg);color:var(--green)}
+.badge-red{background:var(--red-bg);color:var(--red)}
+.badge-blue{background:var(--blue-bg);color:var(--blue)}
+.badge-haldi{background:rgba(242,201,76,.15);color:var(--haldi-dim)}
+
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--paper);border:1px solid var(--rule);width:680px;max-height:85vh;overflow-y:auto}
+.modal-header{padding:20px 24px;border-bottom:1px solid var(--rule);display:flex;align-items:center;justify-content:space-between;background:var(--ink)}
+.modal-title{font-family:'Bebas Neue';font-size:24px;color:var(--haldi);letter-spacing:1px}
+.modal-close{background:none;border:none;color:var(--mid);font-size:20px;cursor:pointer;padding:0 4px}
+.modal-close:hover{color:var(--paper)}
+.modal-body{padding:24px}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--rule);display:flex;justify-content:flex-end;gap:8px}
+
+/* Form */
+.form-group{margin-bottom:18px}
+.form-label{font-size:9px;letter-spacing:2px;color:var(--mid);text-transform:uppercase;display:block;margin-bottom:6px}
+.form-input,.form-select,.form-textarea{width:100%;background:#fff;border:1px solid var(--rule);color:var(--ink);font-family:'Space Mono';font-size:12px;padding:10px 12px;outline:none;transition:border-color .15s}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--ink)}
+.form-textarea{resize:vertical;min-height:80px;line-height:1.6}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--ink);color:var(--haldi);font-family:'Space Mono';font-size:11px;letter-spacing:1px;padding:12px 20px;z-index:9999;transform:translateY(100px);transition:transform .3s;pointer-events:none}
+.toast.show{transform:translateY(0)}
+
+/* Archetype grid */
+.arch-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:24px}
+.arch-chip{background:var(--paper);border:1px solid var(--rule);padding:12px;cursor:pointer;transition:all .15s}
+.arch-chip:hover{border-color:var(--haldi);background:rgba(242,201,76,.05)}
+.arch-chip.active{border-color:var(--haldi);background:rgba(242,201,76,.08)}
+.arch-chip-name{font-family:'Bebas Neue';font-size:13px;color:var(--ink);line-height:1.1;margin-bottom:4px}
+.arch-chip-sig{font-size:8px;color:var(--mid);letter-spacing:.5px}
+
+/* Ideas kanban */
+.ideas-filters{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.filter-btn{background:transparent;border:1px solid var(--rule);color:var(--mid);font-family:'Space Mono';font-size:10px;letter-spacing:1px;padding:6px 14px;cursor:pointer}
+.filter-btn.active{background:var(--ink);border-color:var(--ink);color:var(--haldi)}
+
+/* Results table */
+.result-score{font-family:'Bebas Neue';font-size:16px}
+.fit-mini{height:4px;background:var(--rule);width:60px;display:inline-block;position:relative;vertical-align:middle}
+.fit-mini-fill{position:absolute;top:0;left:0;height:100%;background:var(--haldi-dim)}
+
+.empty-state{text-align:center;padding:48px;color:var(--mid)}
+.empty-state p{font-size:12px;font-style:italic}
+.loading-row td{text-align:center;color:var(--mid);font-style:italic;padding:32px}
+
+/* Section toggle */
+.section-toggle{display:flex;border-bottom:1px solid var(--rule);margin-bottom:24px}
+.stab{padding:10px 20px;font-size:10px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;color:var(--mid);border-bottom:2px solid transparent;margin-bottom:-1px}
+.stab.active{color:var(--ink);border-bottom-color:var(--haldi)}
+</style>
+</head>
+<body>
+
+<!-- Auth Gate -->
+<div id="gate">
+  <h1>ENTREOS ADMIN</h1>
+  <input type="password" id="pwInput" placeholder="Enter admin password" onkeydown="if(event.key==='Enter')checkAuth()">
+  <button onclick="checkAuth()">ENTER →</button>
+  <div class="err" id="authErr"></div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Main Layout -->
+<div class="layout" id="mainLayout" style="display:none">
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <h1>ENTREOS</h1>
+      <p>§ Admin Dashboard</p>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Overview</div>
+      <div class="nav-item active" onclick="nav('dashboard')">§ Dashboard</div>
+      <div class="nav-item" onclick="nav('results')">§ Quiz Results</div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Content</div>
+      <div class="nav-item" onclick="nav('archetypes')">§ Archetypes (32)</div>
+      <div class="nav-item" onclick="nav('ideas')">§ Ideas Bank</div>
+      <div class="nav-item" onclick="nav('homepage')">§ Homepage Content</div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Config</div>
+      <div class="nav-item" onclick="nav('pricing')">§ Pricing</div>
+      <div class="nav-item" onclick="nav('settings')">§ Settings</div>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-header">
+        <div class="page-kicker">§ Overview</div>
+        <div class="page-title">Dashboard</div>
+        <div class="page-sub">Real-time data from Supabase</div>
+      </div>
+      <div class="stats-row" id="statsRow">
+        <div class="stat-card"><div class="stat-label">Total completions</div><div class="stat-val" id="statTotal">—</div><div class="stat-sub">quiz submissions</div></div>
+        <div class="stat-card"><div class="stat-label">Paid reports</div><div class="stat-val" id="statPaid">—</div><div class="stat-sub">completed payments</div></div>
+        <div class="stat-card"><div class="stat-label">Revenue</div><div class="stat-val" id="statRevenue">—</div><div class="stat-sub">total ₹ collected</div></div>
+        <div class="stat-card"><div class="stat-label">Conversion rate</div><div class="stat-val" id="statConv">—</div><div class="stat-sub">quiz to paid</div></div>
+      </div>
+      <div class="table-wrap">
+        <div class="table-toolbar">
+          <span style="font-size:10px;letter-spacing:1px;color:var(--mid)">§ RECENT COMPLETIONS</span>
+          <button class="btn btn-sm" onclick="loadDashboard()">REFRESH</button>
+        </div>
+        <table>
+          <thead><tr><th>Date</th><th>Email</th><th>Archetype</th><th>Confidence</th><th>Status</th></tr></thead>
+          <tbody id="dashTable"><tr class="loading-row"><td colspan="5">Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- QUIZ RESULTS -->
+    <div class="page" id="page-results">
+      <div class="page-header">
+        <div class="page-kicker">§ Data</div>
+        <div class="page-title">Quiz Results</div>
+        <div class="page-sub">All quiz completions — click any row to view full report JSON</div>
+      </div>
+      <div class="table-wrap">
+        <div class="table-toolbar">
+          <input type="text" class="search-input" id="resultsSearch" placeholder="Search email or archetype..." oninput="filterResults()">
+          <div style="display:flex;gap:8px">
+            <select class="form-select" id="statusFilter" style="width:140px;padding:8px" onchange="filterResults()">
+              <option value="">All statuses</option>
+              <option value="paid">Paid</option>
+              <option value="pending">Pending</option>
+            </select>
+            <button class="btn btn-sm" onclick="loadResults()">REFRESH</button>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>Date</th><th>Email</th><th>Archetype</th><th>Scores</th><th>Conf.</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="resultsTable"><tr class="loading-row"><td colspan="7">Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ARCHETYPES -->
+    <div class="page" id="page-archetypes">
+      <div class="page-header">
+        <div class="page-kicker">§ Content Management</div>
+        <div class="page-title">Archetypes</div>
+        <div class="page-sub">Edit narratives, traits, figures, and business matches for all 32 archetypes</div>
+      </div>
+      <div class="section-toggle">
+        <div class="stab active" onclick="archTab('grid')">§ Grid View</div>
+        <div class="stab" onclick="archTab('table')">§ Table View</div>
+      </div>
+      <div id="archGridView">
+        <div class="arch-grid" id="archGrid"></div>
+        <div id="archEditor" style="display:none"></div>
+      </div>
+      <div id="archTableView" style="display:none">
+        <div class="table-wrap">
+          <div class="table-toolbar">
+            <input type="text" class="search-input" id="archSearch" placeholder="Search archetype..." oninput="filterArchetypes()">
+            <button class="btn btn-sm" onclick="openArchModal()">+ ADD ARCHETYPE</button>
+          </div>
+          <table>
+            <thead><tr><th>#</th><th>Name</th><th>Signature</th><th>Frequency</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="archTable"><tr class="loading-row"><td colspan="6">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- IDEAS BANK -->
+    <div class="page" id="page-ideas">
+      <div class="page-header">
+        <div class="page-kicker">§ Content Management</div>
+        <div class="page-title">Ideas Bank</div>
+        <div class="page-sub">Manage business ideas shown in archetype match reports</div>
+      </div>
+      <div class="table-toolbar" style="margin-bottom:16px;padding:0">
+        <div class="ideas-filters" id="sectorFilters">
+          <button class="filter-btn active" onclick="filterIdeas('')">All</button>
+          <button class="filter-btn" onclick="filterIdeas('Technology')">Technology</button>
+          <button class="filter-btn" onclick="filterIdeas('Finance')">Finance</button>
+          <button class="filter-btn" onclick="filterIdeas('Services')">Services</button>
+          <button class="filter-btn" onclick="filterIdeas('Healthcare')">Healthcare</button>
+          <button class="filter-btn" onclick="filterIdeas('Education')">Education</button>
+          <button class="filter-btn" onclick="filterIdeas('Commerce')">Commerce</button>
+        </div>
+        <button class="btn" onclick="openIdeaModal()">+ ADD IDEA</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Business Name</th><th>Sector</th><th>Capital</th><th>Risk</th><th>Archetypes</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="ideasTable"><tr class="loading-row"><td colspan="7">Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- HOMEPAGE -->
+    <div class="page" id="page-homepage">
+      <div class="page-header">
+        <div class="page-kicker">§ Content Management</div>
+        <div class="page-title">Homepage Content</div>
+        <div class="page-sub">Edit headline, tagline, proof points, and section copy</div>
+      </div>
+      <div id="homepageForm">
+        <div class="table-wrap" style="padding:28px">
+          <div class="form-group">
+            <label class="form-label">Main Headline</label>
+            <input type="text" class="form-input" id="hp_headline" placeholder="FIND OUT WHAT YOU'RE BUILT FOR">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Sub-headline / tagline</label>
+            <input type="text" class="form-input" id="hp_tagline" placeholder="A 15-minute psychographic assessment...">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Proof point 1 — Label</label>
+            <div class="form-row">
+              <input type="text" class="form-input" id="hp_p1_val" placeholder="32">
+              <input type="text" class="form-input" id="hp_p1_label" placeholder="Archetypes">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Proof point 2 — Label</label>
+            <div class="form-row">
+              <input type="text" class="form-input" id="hp_p2_val" placeholder="HEXACO">
+              <input type="text" class="form-input" id="hp_p2_label" placeholder="Validated Framework">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Proof point 3 — Label</label>
+            <div class="form-row">
+              <input type="text" class="form-input" id="hp_p3_val" placeholder="AI">
+              <input type="text" class="form-input" id="hp_p3_label" placeholder="Powered Matching">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Proof point 4 — Label</label>
+            <div class="form-row">
+              <input type="text" class="form-input" id="hp_p4_val" placeholder="60s">
+              <input type="text" class="form-input" id="hp_p4_label" placeholder="Results Delivery">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">How it works — Step 1</label>
+            <input type="text" class="form-input" id="hp_step1" placeholder="Take the 15-minute HEXACO assessment">
+          </div>
+          <div class="form-group">
+            <label class="form-label">How it works — Step 2</label>
+            <input type="text" class="form-input" id="hp_step2" placeholder="Discover your entrepreneurial archetype">
+          </div>
+          <div class="form-group">
+            <label class="form-label">How it works — Step 3</label>
+            <input type="text" class="form-input" id="hp_step3" placeholder="Get your personalised business match report">
+          </div>
+          <div style="display:flex;justify-content:flex-end;margin-top:8px">
+            <button class="btn" onclick="saveHomepage()">SAVE HOMEPAGE CONTENT</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PRICING -->
+    <div class="page" id="page-pricing">
+      <div class="page-header">
+        <div class="page-kicker">§ Config</div>
+        <div class="page-title">Pricing</div>
+        <div class="page-sub">Manage the quiz price and what is included</div>
+      </div>
+      <div class="table-wrap" style="padding:28px">
+        <div class="form-group">
+          <label class="form-label">Quiz Price (₹)</label>
+          <input type="number" class="form-input" id="price_amount" placeholder="499" style="width:200px">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Price display label (shown on button)</label>
+          <input type="text" class="form-input" id="price_label" placeholder="₹499" style="width:200px">
+        </div>
+        <div class="form-group">
+          <label class="form-label">What's included — Line 1</label>
+          <input type="text" class="form-input" id="inc1" placeholder="Full archetype report (18 pages)">
+        </div>
+        <div class="form-group">
+          <label class="form-label">What's included — Line 2</label>
+          <input type="text" class="form-input" id="inc2" placeholder="20+ personalised business matches">
+        </div>
+        <div class="form-group">
+          <label class="form-label">What's included — Line 3</label>
+          <input type="text" class="form-input" id="inc3" placeholder="AI-generated context analysis">
+        </div>
+        <div class="form-group">
+          <label class="form-label">What's included — Line 4</label>
+          <input type="text" class="form-input" id="inc4" placeholder="6 personalised next steps">
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:8px">
+          <button class="btn" onclick="savePricing()">SAVE PRICING</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="page" id="page-settings">
+      <div class="page-header">
+        <div class="page-kicker">§ Config</div>
+        <div class="page-title">Settings</div>
+        <div class="page-sub">API keys, environment variables reference, and system status</div>
+      </div>
+      <div class="table-wrap" style="padding:28px">
+        <div class="form-group">
+          <label class="form-label">Supabase URL</label>
+          <input type="text" class="form-input" id="set_supa_url" placeholder="https://xxxxx.supabase.co">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Supabase Anon Key (client-side, safe to store here)</label>
+          <input type="text" class="form-input" id="set_supa_key" placeholder="eyJ...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Razorpay Key ID (public key, safe to store here)</label>
+          <input type="text" class="form-input" id="set_rzp_key" placeholder="rzp_live_...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Contact Email</label>
+          <input type="text" class="form-input" id="set_email" placeholder="rharivatsa@gmail.com">
+        </div>
+        <div style="background:var(--blue-bg);border:1px solid rgba(26,74,122,.2);border-left:3px solid var(--blue);padding:16px 20px;margin-bottom:16px;font-size:11px;color:var(--blue);line-height:1.7">
+          <strong>Secrets that must ONLY live in Vercel environment variables (never here):</strong><br>
+          ANTHROPIC_API_KEY · SUPABASE_SERVICE_KEY · RAZORPAY_KEY_SECRET · RESEND_API_KEY
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:8px">
+          <button class="btn" onclick="saveSettings()">SAVE SETTINGS</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Archetype Edit Modal -->
+<div class="modal-overlay" id="archModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="archModalTitle">EDIT ARCHETYPE</div>
+      <button class="modal-close" onclick="closeModal('archModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="arch_id">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Archetype Number (1–32)</label>
+          <input type="number" class="form-input" id="arch_num" min="1" max="32">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Name (use \n for line break)</label>
+          <input type="text" class="form-input" id="arch_name" placeholder="PLAYER\nOF CLOCKS">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">HEXACO Signature</label>
+        <input type="text" class="form-input" id="arch_sig" placeholder="C-H · X-H · O-H · H-L · E-L">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Narrative (2–4 sentences, second person)</label>
+        <textarea class="form-textarea" id="arch_narrative" rows="4"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Five Defining Traits (one per line)</label>
+        <textarea class="form-textarea" id="arch_traits" rows="5" placeholder="Times market entry better than anyone&#10;Builds coalitions of interest&#10;..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Primary Risk (one sentence)</label>
+        <input type="text" class="form-input" id="arch_risk">
+      </div>
+      <div class="form-row-3">
+        <div class="form-group">
+          <label class="form-label">Frequency</label>
+          <input type="text" class="form-input" id="arch_freq" placeholder="Top 8%">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Survival Rate</label>
+          <input type="text" class="form-input" id="arch_survival" placeholder="2.8×">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Optimal Window</label>
+          <input type="text" class="form-input" id="arch_window" placeholder="Months 3–12">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Best Sectors</label>
+        <input type="text" class="form-input" id="arch_sectors" placeholder="Strategy · Tech · Media">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Historical Figure Name</label>
+          <input type="text" class="form-input" id="arch_hist_name">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Present Figure Name</label>
+          <input type="text" class="form-input" id="arch_pres_name">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Historical Figure — Why They Match (2–3 sentences)</label>
+        <textarea class="form-textarea" id="arch_hist_text" rows="3"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Present Figure — Why They Match (2–3 sentences)</label>
+        <textarea class="form-textarea" id="arch_pres_text" rows="3"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Active</label>
+        <select class="form-select" id="arch_active">
+          <option value="true">Active — shown to users</option>
+          <option value="false">Inactive — hidden</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('archModal')">CANCEL</button>
+      <button class="btn" onclick="saveArchetype()">SAVE ARCHETYPE</button>
+    </div>
+  </div>
+</div>
+
+<!-- Idea Edit Modal -->
+<div class="modal-overlay" id="ideaModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="ideaModalTitle">ADD BUSINESS IDEA</div>
+      <button class="modal-close" onclick="closeModal('ideaModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="idea_id">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Business Name</label>
+          <input type="text" class="form-input" id="idea_name" placeholder="AI Automation Agency for SMEs">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Sector</label>
+          <select class="form-select" id="idea_sector">
+            <option>Technology</option><option>Finance</option><option>Healthcare</option>
+            <option>Education</option><option>Services</option><option>Commerce</option>
+            <option>Real Estate</option><option>Manufacturing</option><option>Media</option><option>Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Capital Min (₹)</label>
+          <input type="number" class="form-input" id="idea_cap_min" placeholder="50000">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Capital Max (₹)</label>
+          <input type="number" class="form-input" id="idea_cap_max" placeholder="200000">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Time to ₹1L/mo (months min)</label>
+          <input type="number" class="form-input" id="idea_rev_min" placeholder="3">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Time to ₹1L/mo (months max)</label>
+          <input type="number" class="form-input" id="idea_rev_max" placeholder="8">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Risk Level</label>
+          <select class="form-select" id="idea_risk">
+            <option>Low</option><option>Medium</option><option>High</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Location Suitability</label>
+          <select class="form-select" id="idea_location">
+            <option>All India</option><option>Metro only</option><option>Tier 2 viable</option>
+            <option>All India · Global</option><option>Online only</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description (2–3 sentences explaining the business)</label>
+        <textarea class="form-textarea" id="idea_desc" rows="3"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">First Action (one specific actionable sentence)</label>
+        <input type="text" class="form-input" id="idea_action">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Matching Archetypes (archetype numbers, comma separated e.g. 9,10,15)</label>
+        <input type="text" class="form-input" id="idea_archetypes" placeholder="9,10,13,15">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Fit Score for primary archetype (%)</label>
+        <input type="number" class="form-input" id="idea_fit" min="50" max="100" placeholder="91" style="width:120px">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Status</label>
+        <select class="form-select" id="idea_active">
+          <option value="true">Active</option>
+          <option value="false">Inactive</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('ideaModal')">CANCEL</button>
+      <button class="btn" onclick="saveIdea()">SAVE IDEA</button>
+    </div>
+  </div>
+</div>
+
+<!-- Result Detail Modal -->
+<div class="modal-overlay" id="resultModal">
+  <div class="modal" style="width:780px">
+    <div class="modal-header">
+      <div class="modal-title" id="resultModalTitle">RESULT DETAIL</div>
+      <button class="modal-close" onclick="closeModal('resultModal')">✕</button>
+    </div>
+    <div class="modal-body" id="resultModalBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('resultModal')">CLOSE</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+// CONFIG — Replace these with your actual values
+// ══════════════════════════════════════════════════════════
+const SUPABASE_URL = localStorage.getItem('supa_url') || 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = localStorage.getItem('supa_key') || 'YOUR_SUPABASE_ANON_KEY';
+const ADMIN_PASSWORD = 'entreos2026'; // Change this before going live
+
+let sb = null;
+let allResults = [];
+let allArchetypes = [];
+let allIdeas = [];
+let currentSector = '';
+
+// ── Auth ──────────────────────────────────────────────────
+function checkAuth() {
+  const pw = document.getElementById('pwInput').value;
+  if (pw === ADMIN_PASSWORD) {
+    document.getElementById('gate').style.display = 'none';
+    document.getElementById('mainLayout').style.display = 'grid';
+    initSupabase();
+    loadDashboard();
+  } else {
+    document.getElementById('authErr').textContent = '§ Incorrect password';
+    document.getElementById('pwInput').value = '';
+  }
+}
+
+function initSupabase() {
+  const url = localStorage.getItem('supa_url') || SUPABASE_URL;
+  const key = localStorage.getItem('supa_key') || SUPABASE_ANON_KEY;
+  if (url && url !== 'YOUR_SUPABASE_URL' && key && key !== 'YOUR_SUPABASE_ANON_KEY') {
+    sb = window.supabase.createClient(url, key);
+    toast('Supabase connected');
+  } else {
+    toast('Set Supabase credentials in Settings first');
+  }
+}
+
+// ── Navigation ────────────────────────────────────────────
+function nav(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  event.target.classList.add('active');
+  if (page === 'dashboard') loadDashboard();
+  if (page === 'results') loadResults();
+  if (page === 'archetypes') loadArchetypes();
+  if (page === 'ideas') loadIdeas();
+  if (page === 'homepage') loadHomepage();
+  if (page === 'pricing') loadPricing();
+  if (page === 'settings') loadSettings();
+}
+
+// ── Toast ─────────────────────────────────────────────────
+function toast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = '§  ' + msg;
+  t.style.background = type === 'error' ? 'var(--red)' : 'var(--ink)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── Modal ─────────────────────────────────────────────────
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+// ── Dashboard ─────────────────────────────────────────────
+async function loadDashboard() {
+  if (!sb) { document.getElementById('dashTable').innerHTML = '<tr class="loading-row"><td colspan="5">Configure Supabase in Settings to load data</td></tr>'; return; }
+  try {
+    const { data: all } = await sb.from('quiz_results').select('*').order('created_at', {ascending: false});
+    const { data: paid } = await sb.from('quiz_results').select('*').eq('payment_status','paid');
+    const total = all?.length || 0;
+    const paidCount = paid?.length || 0;
+    const revenue = paidCount * 499;
+    const conv = total > 0 ? Math.round((paidCount/total)*100) : 0;
+    document.getElementById('statTotal').textContent = total;
+    document.getElementById('statPaid').textContent = paidCount;
+    document.getElementById('statRevenue').textContent = '₹' + revenue.toLocaleString('en-IN');
+    document.getElementById('statConv').textContent = conv + '%';
+    const recent = (all || []).slice(0,10);
+    document.getElementById('dashTable').innerHTML = recent.length ? recent.map(r => `
+      <tr>
+        <td>${new Date(r.created_at).toLocaleDateString('en-IN')}</td>
+        <td>${maskEmail(r.email || '—')}</td>
+        <td><span style="font-family:'Bebas Neue';font-size:13px">${(r.archetype_name||'—').replace('\n',' ')}</span></td>
+        <td>${r.report_json?.match_confidence || '—'}%</td>
+        <td><span class="badge ${r.payment_status==='paid'?'badge-green':'badge-blue'}">${r.payment_status||'pending'}</span></td>
+      </tr>`).join('') : '<tr class="loading-row"><td colspan="5">No results yet</td></tr>';
+  } catch(e) {
+    document.getElementById('dashTable').innerHTML = '<tr class="loading-row"><td colspan="5">Error loading data — check Supabase credentials</td></tr>';
+  }
+}
+
+// ── Results ───────────────────────────────────────────────
+async function loadResults() {
+  if (!sb) { document.getElementById('resultsTable').innerHTML = '<tr class="loading-row"><td colspan="7">Configure Supabase in Settings</td></tr>'; return; }
+  const { data } = await sb.from('quiz_results').select('*').order('created_at', {ascending: false});
+  allResults = data || [];
+  renderResultsTable(allResults);
+}
+
+function renderResultsTable(rows) {
+  const tbody = document.getElementById('resultsTable');
+  if (!rows.length) { tbody.innerHTML = '<tr class="loading-row"><td colspan="7">No results found</td></tr>'; return; }
+  tbody.innerHTML = rows.map(r => {
+    const scores = r.hexaco_scores || {};
+    const scoreStr = Object.entries(scores).map(([k,v]) => `${k}:${parseFloat(v).toFixed(1)}`).join(' ');
+    return `<tr>
+      <td>${new Date(r.created_at).toLocaleDateString('en-IN')}</td>
+      <td>${maskEmail(r.email||'—')}</td>
+      <td><span style="font-family:'Bebas Neue';font-size:13px">${(r.archetype_name||'—').replace('\n',' ')}</span></td>
+      <td style="font-family:'Space Mono';font-size:9px;color:var(--mid)">${scoreStr}</td>
+      <td>${r.report_json?.match_confidence || '—'}%</td>
+      <td><span class="badge ${r.payment_status==='paid'?'badge-green':'badge-blue'}">${r.payment_status||'pending'}</span></td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-sm btn-outline" onclick="viewResult('${r.id}')">VIEW</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function filterResults() {
+  const q = document.getElementById('resultsSearch').value.toLowerCase();
+  const status = document.getElementById('statusFilter').value;
+  const filtered = allResults.filter(r => {
+    const matchQ = !q || (r.email||'').toLowerCase().includes(q) || (r.archetype_name||'').toLowerCase().includes(q);
+    const matchS = !status || r.payment_status === status;
+    return matchQ && matchS;
+  });
+  renderResultsTable(filtered);
+}
+
+async function viewResult(id) {
+  const r = allResults.find(x => x.id === id);
+  if (!r) return;
+  document.getElementById('resultModalTitle').textContent = (r.archetype_name||'').replace('\n',' ').toUpperCase();
+  document.getElementById('resultModalBody').innerHTML = `
+    <div class="form-group"><div class="form-label">Email</div><div style="font-size:12px">${r.email||'—'}</div></div>
+    <div class="form-group"><div class="form-label">Date</div><div style="font-size:12px">${new Date(r.created_at).toLocaleString('en-IN')}</div></div>
+    <div class="form-group"><div class="form-label">HEXACO Scores</div><pre style="font-size:11px;background:#f0ede8;padding:12px;overflow:auto">${JSON.stringify(r.hexaco_scores||{},null,2)}</pre></div>
+    <div class="form-group"><div class="form-label">Context Vector</div><pre style="font-size:11px;background:#f0ede8;padding:12px;overflow:auto;max-height:200px">${JSON.stringify(r.context_vector||{},null,2)}</pre></div>
+    <div class="form-group"><div class="form-label">Report JSON (top matches)</div><pre style="font-size:11px;background:#f0ede8;padding:12px;overflow:auto;max-height:240px">${JSON.stringify((r.report_json||{}).top_matches||[],null,2)}</pre></div>
+    ${r.unique_url_token ? `<div class="form-group"><div class="form-label">Results URL</div><a href="/results.html?t=${r.unique_url_token}" target="_blank" style="color:var(--blue);font-size:11px">/results.html?t=${r.unique_url_token}</a></div>` : ''}
+  `;
+  document.getElementById('resultModal').classList.add('open');
+}
+
+// ── Archetypes ────────────────────────────────────────────
+async function loadArchetypes() {
+  if (!sb) { document.getElementById('archTable').innerHTML = '<tr class="loading-row"><td colspan="6">Configure Supabase in Settings</td></tr>'; return; }
+  const { data } = await sb.from('archetypes').select('*').order('id');
+  allArchetypes = data || [];
+  renderArchGrid(allArchetypes);
+  renderArchTable(allArchetypes);
+}
+
+function renderArchGrid(archs) {
+  document.getElementById('archGrid').innerHTML = archs.map(a => `
+    <div class="arch-chip" onclick="editArch('${a.id}')">
+      <div class="arch-chip-name">${(a.name||'').replace('\n','<br>')}</div>
+      <div class="arch-chip-sig">${a.signature||''}</div>
+    </div>`).join('');
+}
+
+function renderArchTable(archs) {
+  document.getElementById('archTable').innerHTML = archs.map(a => `
+    <tr>
+      <td>${a.id}</td>
+      <td><span style="font-family:'Bebas Neue';font-size:14px">${(a.name||'').replace('\n',' ')}</span></td>
+      <td style="font-family:'Space Mono';font-size:9px;color:var(--mid)">${a.signature||''}</td>
+      <td>${a.frequency||'—'}</td>
+      <td><span class="badge ${a.active?'badge-green':'badge-red'}">${a.active?'active':'inactive'}</span></td>
+      <td><button class="btn btn-sm btn-outline" onclick="editArch('${a.id}')">EDIT</button></td>
+    </tr>`).join('');
+}
+
+function filterArchetypes() {
+  const q = document.getElementById('archSearch').value.toLowerCase();
+  renderArchTable(allArchetypes.filter(a => (a.name||'').toLowerCase().includes(q) || (a.signature||'').toLowerCase().includes(q)));
+}
+
+function archTab(tab) {
+  document.getElementById('archGridView').style.display = tab === 'grid' ? 'block' : 'none';
+  document.getElementById('archTableView').style.display = tab === 'table' ? 'block' : 'none';
+  document.querySelectorAll('.stab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+function openArchModal(id) {
+  document.getElementById('archModalTitle').textContent = id ? 'EDIT ARCHETYPE' : 'ADD ARCHETYPE';
+  document.getElementById('arch_id').value = '';
+  ['arch_num','arch_name','arch_sig','arch_narrative','arch_traits','arch_risk','arch_freq','arch_survival','arch_window','arch_sectors','arch_hist_name','arch_hist_text','arch_pres_name','arch_pres_text'].forEach(f => { const el = document.getElementById(f); if(el) el.value=''; });
+  document.getElementById('archModal').classList.add('open');
+}
+
+function editArch(id) {
+  const a = allArchetypes.find(x => String(x.id) === String(id));
+  if (!a) return;
+  document.getElementById('archModalTitle').textContent = 'EDIT ARCHETYPE';
+  document.getElementById('arch_id').value = a.id;
+  document.getElementById('arch_num').value = a.id;
+  document.getElementById('arch_name').value = a.name||'';
+  document.getElementById('arch_sig').value = a.signature||'';
+  document.getElementById('arch_narrative').value = a.narrative||'';
+  document.getElementById('arch_traits').value = (a.traits||[]).join('\n');
+  document.getElementById('arch_risk').value = a.primary_risk||'';
+  document.getElementById('arch_freq').value = a.frequency||'';
+  document.getElementById('arch_survival').value = a.survival_rate||'';
+  document.getElementById('arch_window').value = a.optimal_window||'';
+  document.getElementById('arch_sectors').value = a.best_sectors||'';
+  document.getElementById('arch_hist_name').value = a.historical_figure_name||'';
+  document.getElementById('arch_hist_text').value = a.historical_figure_text||'';
+  document.getElementById('arch_pres_name').value = a.present_figure_name||'';
+  document.getElementById('arch_pres_text').value = a.present_figure_text||'';
+  document.getElementById('arch_active').value = a.active ? 'true' : 'false';
+  document.getElementById('archModal').classList.add('open');
+}
+
+async function saveArchetype() {
+  if (!sb) { toast('Supabase not connected','error'); return; }
+  const id = document.getElementById('arch_id').value;
+  const payload = {
+    id: parseInt(document.getElementById('arch_num').value),
+    name: document.getElementById('arch_name').value,
+    signature: document.getElementById('arch_sig').value,
+    narrative: document.getElementById('arch_narrative').value,
+    traits: document.getElementById('arch_traits').value.split('\n').filter(t=>t.trim()),
+    primary_risk: document.getElementById('arch_risk').value,
+    frequency: document.getElementById('arch_freq').value,
+    survival_rate: document.getElementById('arch_survival').value,
+    optimal_window: document.getElementById('arch_window').value,
+    best_sectors: document.getElementById('arch_sectors').value,
+    historical_figure_name: document.getElementById('arch_hist_name').value,
+    historical_figure_text: document.getElementById('arch_hist_text').value,
+    present_figure_name: document.getElementById('arch_pres_name').value,
+    present_figure_text: document.getElementById('arch_pres_text').value,
+    active: document.getElementById('arch_active').value === 'true',
+  };
+  const { error } = id
+    ? await sb.from('archetypes').update(payload).eq('id', id)
+    : await sb.from('archetypes').insert(payload);
+  if (error) { toast('Error: ' + error.message, 'error'); return; }
+  toast('Archetype saved');
+  closeModal('archModal');
+  loadArchetypes();
+}
+
+// ── Ideas Bank ────────────────────────────────────────────
+async function loadIdeas() {
+  if (!sb) { document.getElementById('ideasTable').innerHTML = '<tr class="loading-row"><td colspan="7">Configure Supabase in Settings</td></tr>'; return; }
+  const { data } = await sb.from('ideas_bank').select('*').order('created_at', {ascending:false});
+  allIdeas = data || [];
+  renderIdeasTable(allIdeas);
+}
+
+function renderIdeasTable(ideas) {
+  const tbody = document.getElementById('ideasTable');
+  if (!ideas.length) { tbody.innerHTML = '<tr class="loading-row"><td colspan="7">No ideas yet — add your first business idea</td></tr>'; return; }
+  tbody.innerHTML = ideas.map(i => `
+    <tr>
+      <td><strong>${i.business_name||'—'}</strong></td>
+      <td><span class="badge badge-blue">${i.sector||'—'}</span></td>
+      <td style="font-size:11px">₹${((i.capital_min||0)/1000).toFixed(0)}K – ₹${((i.capital_max||0)/1000).toFixed(0)}K</td>
+      <td><span class="badge ${i.risk_level==='Low'?'badge-green':i.risk_level==='High'?'badge-red':'badge-blue'}">${i.risk_level||'—'}</span></td>
+      <td style="font-family:'Space Mono';font-size:10px;color:var(--mid)">${(i.archetype_matches||[]).join(', ')}</td>
+      <td><span class="badge ${i.active?'badge-green':'badge-red'}">${i.active?'active':'inactive'}</span></td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-sm btn-outline" onclick="editIdea('${i.id}')">EDIT</button>
+        <button class="btn btn-sm btn-red" onclick="toggleIdea('${i.id}', ${i.active})" style="margin-left:4px">${i.active?'HIDE':'SHOW'}</button>
+      </td>
+    </tr>`).join('');
+}
+
+function filterIdeas(sector) {
+  currentSector = sector;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  renderIdeasTable(sector ? allIdeas.filter(i => i.sector === sector) : allIdeas);
+}
+
+function openIdeaModal() {
+  document.getElementById('ideaModalTitle').textContent = 'ADD BUSINESS IDEA';
+  document.getElementById('idea_id').value = '';
+  ['idea_name','idea_desc','idea_action','idea_archetypes','idea_fit'].forEach(f => { document.getElementById(f).value=''; });
+  document.getElementById('ideaModal').classList.add('open');
+}
+
+function editIdea(id) {
+  const i = allIdeas.find(x => x.id === id);
+  if (!i) return;
+  document.getElementById('ideaModalTitle').textContent = 'EDIT BUSINESS IDEA';
+  document.getElementById('idea_id').value = i.id;
+  document.getElementById('idea_name').value = i.business_name||'';
+  document.getElementById('idea_sector').value = i.sector||'Technology';
+  document.getElementById('idea_cap_min').value = i.capital_min||'';
+  document.getElementById('idea_cap_max').value = i.capital_max||'';
+  document.getElementById('idea_rev_min').value = i.time_to_revenue_months_min||'';
+  document.getElementById('idea_rev_max').value = i.time_to_revenue_months_max||'';
+  document.getElementById('idea_risk').value = i.risk_level||'Medium';
+  document.getElementById('idea_location').value = i.location_suitability||'All India';
+  document.getElementById('idea_desc').value = i.description||'';
+  document.getElementById('idea_action').value = i.first_action||'';
+  document.getElementById('idea_archetypes').value = (i.archetype_matches||[]).join(',');
+  document.getElementById('idea_fit').value = i.fit_score||'';
+  document.getElementById('idea_active').value = i.active ? 'true' : 'false';
+  document.getElementById('ideaModal').classList.add('open');
+}
+
+async function saveIdea() {
+  if (!sb) { toast('Supabase not connected','error'); return; }
+  const id = document.getElementById('idea_id').value;
+  const archs = document.getElementById('idea_archetypes').value.split(',').map(s=>s.trim()).filter(Boolean);
+  const payload = {
+    business_name: document.getElementById('idea_name').value,
+    sector: document.getElementById('idea_sector').value,
+    capital_min: parseInt(document.getElementById('idea_cap_min').value)||0,
+    capital_max: parseInt(document.getElementById('idea_cap_max').value)||0,
+    time_to_revenue_months_min: parseInt(document.getElementById('idea_rev_min').value)||0,
+    time_to_revenue_months_max: parseInt(document.getElementById('idea_rev_max').value)||0,
+    risk_level: document.getElementById('idea_risk').value,
+    location_suitability: document.getElementById('idea_location').value,
+    description: document.getElementById('idea_desc').value,
+    first_action: document.getElementById('idea_action').value,
+    archetype_matches: archs,
+    fit_score: parseInt(document.getElementById('idea_fit').value)||85,
+    active: document.getElementById('idea_active').value === 'true',
+  };
+  const { error } = id
+    ? await sb.from('ideas_bank').update(payload).eq('id', id)
+    : await sb.from('ideas_bank').insert(payload);
+  if (error) { toast('Error: ' + error.message, 'error'); return; }
+  toast('Idea saved');
+  closeModal('ideaModal');
+  loadIdeas();
+}
+
+async function toggleIdea(id, currentActive) {
+  if (!sb) return;
+  await sb.from('ideas_bank').update({active: !currentActive}).eq('id', id);
+  toast(!currentActive ? 'Idea activated' : 'Idea hidden');
+  loadIdeas();
+}
+
+// ── Homepage ──────────────────────────────────────────────
+async function loadHomepage() {
+  if (!sb) return;
+  const { data } = await sb.from('site_content').select('*').eq('page','homepage').single();
+  if (data?.content) {
+    const c = data.content;
+    ['headline','tagline','p1_val','p1_label','p2_val','p2_label','p3_val','p3_label','p4_val','p4_label','step1','step2','step3'].forEach(k => {
+      const el = document.getElementById('hp_'+k);
+      if (el && c[k]) el.value = c[k];
+    });
+  }
+}
+
+async function saveHomepage() {
+  if (!sb) { toast('Supabase not connected','error'); return; }
+  const content = {};
+  ['headline','tagline','p1_val','p1_label','p2_val','p2_label','p3_val','p3_label','p4_val','p4_label','step1','step2','step3'].forEach(k => {
+    const el = document.getElementById('hp_'+k);
+    if (el) content[k] = el.value;
+  });
+  const { error } = await sb.from('site_content').upsert({page:'homepage', content}, {onConflict:'page'});
+  if (error) { toast('Error: ' + error.message,'error'); return; }
+  toast('Homepage content saved');
+}
+
+// ── Pricing ───────────────────────────────────────────────
+async function loadPricing() {
+  if (!sb) return;
+  const { data } = await sb.from('site_content').select('*').eq('page','pricing').single();
+  if (data?.content) {
+    const c = data.content;
+    ['amount','label','inc1','inc2','inc3','inc4'].forEach(k => {
+      const el = document.getElementById('price_'+k) || document.getElementById(k);
+      if (el && c[k]) el.value = c[k];
+    });
+  }
+}
+
+async function savePricing() {
+  if (!sb) { toast('Supabase not connected','error'); return; }
+  const content = {
+    amount: document.getElementById('price_amount').value,
+    label: document.getElementById('price_label').value,
+    inc1: document.getElementById('inc1').value,
+    inc2: document.getElementById('inc2').value,
+    inc3: document.getElementById('inc3').value,
+    inc4: document.getElementById('inc4').value,
+  };
+  const { error } = await sb.from('site_content').upsert({page:'pricing', content}, {onConflict:'page'});
+  if (error) { toast('Error: ' + error.message,'error'); return; }
+  toast('Pricing saved');
+}
+
+// ── Settings ──────────────────────────────────────────────
+function loadSettings() {
+  document.getElementById('set_supa_url').value = localStorage.getItem('supa_url')||'';
+  document.getElementById('set_supa_key').value = localStorage.getItem('supa_key')||'';
+  document.getElementById('set_rzp_key').value = localStorage.getItem('rzp_key')||'';
+  document.getElementById('set_email').value = localStorage.getItem('contact_email')||'rharivatsa@gmail.com';
+}
+
+function saveSettings() {
+  localStorage.setItem('supa_url', document.getElementById('set_supa_url').value);
+  localStorage.setItem('supa_key', document.getElementById('set_supa_key').value);
+  localStorage.setItem('rzp_key', document.getElementById('set_rzp_key').value);
+  localStorage.setItem('contact_email', document.getElementById('set_email').value);
+  initSupabase();
+  toast('Settings saved — Supabase reinitialised');
+}
+
+// ── Utils ─────────────────────────────────────────────────
+function maskEmail(email) {
+  if (!email || !email.includes('@')) return email;
+  const [local, domain] = email.split('@');
+  return local.slice(0,2) + '***@' + domain;
+}
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('open');
+  });
+});
+
+// Enter key on password field
+document.getElementById('pwInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') checkAuth();
+});
+</script>
+</body>
+</html>
