@@ -107,7 +107,10 @@ tr:hover td{background:rgba(242,201,76,.03)}
 <div class="toast" id="toast"></div>
 <div class="layout" id="mainLayout" style="display:none">
   <div class="sidebar">
-    <div class="sidebar-logo"><h1>ENTREOS</h1><p>Admin</p></div>
+    <div class="sidebar-logo" style="display:flex;align-items:center;justify-content:space-between">
+      <div><h1>ENTREOS</h1><p>Admin</p></div>
+      <button id="logoutBtn" style="background:rgba(192,57,43,.2);border:none;color:rgba(247,244,238,.5);font-family:'Space Mono';font-size:9px;letter-spacing:1px;padding:4px 8px;cursor:pointer;border-radius:0" title="Log out">EXIT</button>
+    </div>
     <div class="nav-section">
       <div class="nav-label">Overview</div>
       <div class="nav-item active" data-page="dashboard"><div class="nav-dot" style="background:#F2C94C"></div>Dashboard</div>
@@ -419,16 +422,31 @@ const ANAMES={1:'IRON OF WILL',2:'KEEPER OF FLAME',3:'EDGE OF TRUTH',4:'STILL OF
 
 // Auth
 document.getElementById('loginBtn').addEventListener('click',doLogin);
+document.addEventListener('DOMContentLoaded',function(){
+  const lb=document.getElementById('logoutBtn');
+  if(lb)lb.addEventListener('click',function(){
+    localStorage.removeItem('entreos_admin_auth');
+    location.reload();
+  });
+});
 document.getElementById('pwInput').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 function doLogin(){
   if(document.getElementById('pwInput').value===ADMIN_PASSWORD){
-    document.getElementById('gate').style.display='none';
-    document.getElementById('mainLayout').style.display='grid';
-    initSB();loadDashboard();
+    localStorage.setItem('entreos_admin_auth','1');
+    showAdmin();
   } else {
     document.getElementById('authErr').textContent='Incorrect password';
     document.getElementById('pwInput').value='';
   }
+}
+function showAdmin(){
+  document.getElementById('gate').style.display='none';
+  document.getElementById('mainLayout').style.display='grid';
+  initSB();loadDashboard();
+}
+// Auto-login if previously authenticated
+if(localStorage.getItem('entreos_admin_auth')==='1'){
+  showAdmin();
 }
 function initSB(){
   const u=localStorage.getItem('supa_url')||DEFAULT_SUPA_URL;
