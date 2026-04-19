@@ -4407,7 +4407,7 @@ body{background:var(--ink);font-family:'Instrument Serif',serif;color:var(--pape
       </div>
     </div>
 
-    <div class="ideas-grid">
+    <div class="ideas-grid" id="ideas-grid-dynamic">
         <!-- Card 1 -->
         <div class="idea-card reveal">
           <div class="ic-sector">Digital & Creator</div>
@@ -4625,7 +4625,7 @@ body{background:var(--ink);font-family:'Instrument Serif',serif;color:var(--pape
     <div class="franchise-sub">Only listings whose investment structure, operational model, and psychographic fit have been independently assessed. Honest numbers. HEXACO compatibility data included.</div>
   </div>
 
-  <div class="franchise-grid">
+  <div class="franchise-grid" id="franchise-grid-dynamic">
     <div class="fc reveal">
       <div class="fc-sector">Food & Beverage <span class="fc-compat">94%</span></div>
       <div class="fc-name">CHAI WALA EXPRESS</div>
@@ -4844,7 +4844,7 @@ body{background:var(--ink);font-family:'Instrument Serif',serif;color:var(--pape
     <button class="sf-btn" onclick="filterSubs(this,'state')">State Schemes</button>
   </div>
 
-  <div class="sub-grid">
+  <div class="sub-grid" id="sub-grid-dynamic">
     <div class="sub-card reveal" data-cat="loan">
       <div class="sc-type">Loan Scheme · National<div class="sc-badge">CENTRAL</div></div>
       <div class="sc-name">PM MUDRA YOJANA</div>
@@ -5067,7 +5067,7 @@ body{background:var(--ink);font-family:'Instrument Serif',serif;color:var(--pape
 
   <div class="learn-content">
     <!-- AI PATHS -->
-    <div id="lx-paths">
+    <div id="lx-paths" data-dynamic="true">
       <div class="section-kicker" style="margin-bottom:24px">§ AI paths built for your industry — not generic prompting guides</div>
       <div class="paths-grid" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr))">
         <div class="path-card reveal"><div class="path-head"><div class="path-type">Doctors & Private Practitioners</div><div class="path-title">AI FOR MEDICINE</div></div><div class="path-body"><div class="path-items"><div class="pi"><div class="pi-dot"></div><div class="pi-text">AI-drafted clinical summaries and discharge notes — cut documentation time by 60%</div></div><div class="pi"><div class="pi-dot"></div><div class="pi-text">WhatsApp appointment booking, reminder flows, and no-show reduction automation</div></div><div class="pi"><div class="pi-dot"></div><div class="pi-text">AI second-opinion research: surface relevant journal evidence for complex cases</div></div><div class="pi"><div class="pi-dot"></div><div class="pi-text">Build a personal brand and patient acquisition channel through health content AI</div></div></div></div></div>
@@ -7846,6 +7846,173 @@ document.addEventListener('DOMContentLoaded', function() {
 
 });
 
+</script>
+
+<script>
+// ══════════════════════════════════════════════════════════
+// ENTREOS DYNAMIC CONTENT LOADER
+// Reads businesses, franchises, govt_schemes, courses from
+// Supabase and renders them into the website sections.
+// Hardcoded cards remain as fallback if DB is empty.
+// ══════════════════════════════════════════════════════════
+
+async function loadDynamicContent() {
+  if (!getSB || !getSB()) return;
+  const db = getSB();
+
+  try {
+    const [bizRes, franRes, schemeRes, courseRes] = await Promise.all([
+      db.from('businesses').select('*').eq('active', true).order('created_at', {ascending: false}),
+      db.from('franchises').select('*').eq('active', true).order('created_at', {ascending: false}),
+      db.from('govt_schemes').select('*').eq('active', true).order('created_at', {ascending: false}),
+      db.from('courses').select('*').eq('active', true).order('created_at', {ascending: false}),
+    ]);
+
+    if (bizRes.data && bizRes.data.length > 0) renderBusinessIdeas(bizRes.data);
+    if (franRes.data && franRes.data.length > 0) renderFranchises(franRes.data);
+    if (schemeRes.data && schemeRes.data.length > 0) renderSchemes(schemeRes.data);
+    if (courseRes.data && courseRes.data.length > 0) renderCourses(courseRes.data);
+  } catch(e) {
+    console.warn('EntreOS dynamic content: Supabase fetch failed, using hardcoded content.', e);
+  }
+}
+
+function fmtCapital(min, max) {
+  if (!min && !max) return '—';
+  const f = n => n >= 100000 ? '₹' + (n/100000).toFixed(n % 100000 === 0 ? 0 : 1) + 'L' : '₹' + (n/1000).toFixed(0) + 'K';
+  return f(min) + '–' + f(max);
+}
+
+function archetypeNames(ids) {
+  const names = {
+    1:'Iron Of Will',2:'Keeper Of Flame',3:'Edge Of Truth',4:'Still Of Water',
+    5:'Maker Of Maps',6:'Builder Of Time',7:'Hand Of Shadow',8:'Voice Of Tomorrow',
+    9:'Rock Of Ages',10:'Word Of Bond',11:'Force Of Nature',12:'Master Of Rooms',
+    13:'Finder Of Ways',14:'Sum Of Parts',15:'Player Of Clocks',16:'Charge Of Field',
+    17:'River Of Patience',18:'Heart Of Ground',19:'Free Of All',20:'Flash Of Proof',
+    21:'Depth Of Knowing',22:'Sense Of Things',23:'Clear Of Noise',24:'Open Of Road',
+    25:'Pull Of Gravity',26:'Warmth Of Welcome',27:'Face Of Many',28:'Live Of Wire',
+    29:'First Of Ground',30:'Rise Of Tide',31:'Eye Of Storm',32:'Force Of Storm'
+  };
+  if (!ids || !ids.length) return 'All archetypes';
+  if (ids.length > 4) return ids.length + ' archetypes';
+  return ids.map(id => names[parseInt(id)] || id).join(' · ');
+}
+
+// ── BUSINESS IDEAS ────────────────────────────────────────
+function renderBusinessIdeas(items) {
+  const grid = document.getElementById('ideas-grid-dynamic');
+  if (!grid) return;
+  const delays = ['', ' reveal-d1', ' reveal-d2', ' reveal-d3', ''];
+  grid.innerHTML = items.map((b, i) => `
+    <div class="idea-card reveal${delays[i % 5]}">
+      <div class="ic-sector">${b.sector || '—'}</div>
+      <div class="ic-name">${b.business_name || '—'}</div>
+      <div class="ic-hook">${b.description || ''}</div>
+      <div class="ic-metas">
+        <div class="ic-m">Capital: <strong>${fmtCapital(b.capital_min, b.capital_max)}</strong></div>
+        <div class="ic-m">Risk: <strong>${b.risk_level || '—'}</strong></div>
+        <div class="ic-m">Revenue: <strong>${b.time_to_revenue_months_min || '?'}–${b.time_to_revenue_months_max || '?'} mo</strong></div>
+      </div>
+      <div class="ic-hexaco">Best fit: ${archetypeNames(b.archetype_matches)}</div>
+    </div>`).join('');
+}
+
+// ── FRANCHISES ────────────────────────────────────────────
+function renderFranchises(items) {
+  const grid = document.getElementById('franchise-grid-dynamic');
+  if (!grid) return;
+  const delays = ['', ' reveal-d1', ' reveal-d2', ' reveal-d3', ''];
+  grid.innerHTML = items.map((f, i) => `
+    <div class="fc reveal${delays[i % 5]}">
+      <div class="fc-sector">${f.sector || '—'} <span class="fc-compat">${f.archetype_matches && f.archetype_matches.length ? f.archetype_matches.length * 3 + '%' : ''}</span></div>
+      <div class="fc-name">${(f.brand_name || '').toUpperCase()}</div>
+      <div class="fc-tag">${f.description || ''}</div>
+      <div class="fc-details">
+        <div class="fc-detail-row"><span class="fc-dl">Investment</span><span class="fc-dv">${fmtCapital(f.investment_min, f.investment_max)}</span></div>
+        <div class="fc-detail-row"><span class="fc-dl">Royalty</span><span class="fc-dv">${f.royalty_structure || '—'}</span></div>
+        <div class="fc-detail-row"><span class="fc-dl">Territories</span><span class="fc-dv">${f.territories_available || '—'}</span></div>
+        <div class="fc-detail-row"><span class="fc-dl">Break-even</span><span class="fc-dv">${f.breakeven_timeline || '—'}</span></div>
+      </div>
+      <button class="fc-apply" onclick="${f.contact ? "window.open('" + (f.contact.startsWith('http') ? f.contact : 'mailto:' + f.contact) + "','_blank')" : ""}">APPLY TO LEARN MORE</button>
+    </div>`).join('');
+}
+
+// ── GOVT SCHEMES ──────────────────────────────────────────
+function renderSchemes(items) {
+  const grid = document.getElementById('sub-grid-dynamic');
+  if (!grid) return;
+  const delays = ['', ' reveal-d1', ' reveal-d2', ''];
+  const catMap = {
+    'Loan Scheme': 'loan', 'Grant': 'grant', 'Subsidy': 'subsidy',
+    'Recognition': 'startup', 'Credit Guarantee': 'loan',
+    'Tax Benefit': 'startup', 'Other': 'other'
+  };
+  grid.innerHTML = items.map((s, i) => `
+    <div class="sub-card reveal${delays[i % 4]}" data-cat="${catMap[s.scheme_type] || 'other'}">
+      <div class="sc-type">${s.scheme_type || '—'} · ${s.state || 'National'}<div class="sc-badge">${s.level || 'CENTRAL'}</div></div>
+      <div class="sc-name">${(s.scheme_name || '').toUpperCase()}</div>
+      <div class="sc-ministry">${s.ministry || '—'}</div>
+      <div class="sc-desc">${s.description || ''}</div>
+      <div class="sc-amount">${s.amount_benefit || '—'}</div>
+      <div class="sc-tags">
+        ${(s.tags || []).map(t => `<span class="sc-tag">${t}</span>`).join('')}
+        ${s.official_link ? `<a href="${s.official_link}" target="_blank" class="sc-tag" style="cursor:pointer;text-decoration:none">Apply →</a>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+// ── COURSES / TRAINING ────────────────────────────────────
+function renderCourses(items) {
+  const container = document.getElementById('lx-paths');
+  if (!container) return;
+  const delays = ['', ' reveal-d1', ' reveal-d2', ''];
+  // Keep the existing section-kicker, replace only the paths-grid
+  const existingKicker = container.querySelector('.section-kicker');
+  const kicHTML = existingKicker ? existingKicker.outerHTML : '';
+
+  const cards = items.map((c, i) => `
+    <div class="path-card reveal${delays[i % 4]}">
+      <div class="path-head">
+        <div class="path-type">${c.provider || '—'} · ${c.course_type || '—'}</div>
+        <div class="path-title">${(c.title || '').toUpperCase()}</div>
+      </div>
+      <div class="path-body">
+        <div style="font-size:10px;color:var(--mid);margin-bottom:12px;font-family:'Space Mono',monospace">
+          ${c.duration || ''} ${c.format ? '· ' + c.format : ''} ${c.price_display || (c.price ? '· ₹' + c.price.toLocaleString('en-IN') : '')}
+        </div>
+        <div class="path-items">
+          ${(c.outcomes || [c.description]).filter(Boolean).slice(0, 4).map(o =>
+            `<div class="pi"><div class="pi-dot"></div><div class="pi-text">${o}</div></div>`
+          ).join('')}
+        </div>
+        <div style="margin-top:16px">
+          <div style="font-size:9px;color:var(--mid);font-family:'Space Mono',monospace;margin-bottom:6px">Best for: ${c.best_for || archetypeNames(c.archetype_matches)}</div>
+          ${c.next_batch ? `<div style="font-size:9px;color:var(--haldi-dim);font-family:'Space Mono',monospace;margin-bottom:10px">Next batch: ${c.next_batch}</div>` : ''}
+          ${c.enrolment_link ? `<button onclick="window.open('${c.enrolment_link}','_blank')" style="font-family:'Bebas Neue';font-size:13px;letter-spacing:1px;padding:8px 20px;background:var(--ink);color:var(--haldi);border:none;cursor:pointer;transition:all .15s">ENROL NOW →</button>` : ''}
+        </div>
+      </div>
+    </div>`).join('');
+
+  container.innerHTML = kicHTML + `<div class="paths-grid" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr))">${cards}</div>`;
+}
+
+// ── Run on page load ──────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  // Small delay to ensure Supabase client is initialised
+  setTimeout(loadDynamicContent, 800);
+});
+
+// Also reload when navigating to these pages
+document.addEventListener('click', function(e) {
+  const navItem = e.target.closest('.nav-links a, .nav-mobile-menu a');
+  if (!navItem) return;
+  const target = navItem.getAttribute('onclick') || '';
+  if (target.includes("'ideas'") || target.includes("'franchises'") ||
+      target.includes("'subsidies'") || target.includes("'learn'")) {
+    setTimeout(loadDynamicContent, 300);
+  }
+});
 </script>
 </body>
 </html>
